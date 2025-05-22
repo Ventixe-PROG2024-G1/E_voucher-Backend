@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Invoice\Invoice.csproj" />
+    <ProjectReference Include="..\EVoucher\EVoucher.csproj" />
   </ItemGroup>
 
   <ItemGroup>

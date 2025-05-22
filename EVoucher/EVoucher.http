@@ -1,0 +1,6 @@
+@EVoucher_HostAddress = http://localhost:5145
+
+GET {{EVoucher_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
