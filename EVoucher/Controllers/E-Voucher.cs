@@ -1,4 +1,5 @@
 ﻿using EVoucher.Models;
+using Grpc.Core;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.Grpc;
 
@@ -7,10 +8,11 @@ namespace EVoucher.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class EVoucherController(IHttpClientFactory httpClientFactory, LocationGrpcService.LocationGrpcServiceClient locationClient) : ControllerBase
+    public class EVoucherController(IHttpClientFactory httpClientFactory, LocationGrpcService.LocationGrpcServiceClient locationClient, IConfiguration config) : ControllerBase
     {
         private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
         private readonly LocationGrpcService.LocationGrpcServiceClient _locationClient = locationClient;
+        private readonly IConfiguration _config = config;
 
         [HttpGet("{InvoiceId}/{EventId}")]
         public async Task<ActionResult<Models.EVoucher>> GetEVoucher(string InvoiceId, Guid EventId)
@@ -51,7 +53,7 @@ namespace EVoucher.Controllers
                 {
                     try
                     {
-                        var fetchedLocation = await _locationClient.GetLocationAsync(new LocationRequest { LocationId = fetchedEvent.LocationId.ToString() });
+                        var fetchedLocation = await _locationClient.GetLocationAsync(new LocationRequest { LocationId = fetchedEvent.LocationId.ToString() }, new CallOptions(new Metadata { { "location-api-key", _config["SecretKey:location-api-key"] } }));
                         var loc = fetchedLocation.Location;
                         if (loc != null)
                             locationString = $"{loc.LocationName}, {loc.CityName}";
