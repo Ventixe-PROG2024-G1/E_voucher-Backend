@@ -8,8 +8,9 @@ namespace EVoucher.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class EVoucherController(IHttpClientFactory httpClientFactory, LocationGrpcService.LocationGrpcServiceClient locationClient, IConfiguration config) : ControllerBase
+    public class EVoucherController(IHttpClientFactory httpClientFactory, LocationGrpcService.LocationGrpcServiceClient locationClient, IConfiguration config, ILogger<EVoucherController> logger) : ControllerBase
     {
+        private readonly ILogger<EVoucherController> _logger = logger;
         private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
         private readonly LocationGrpcService.LocationGrpcServiceClient _locationClient = locationClient;
         private readonly IConfiguration _config = config;
@@ -17,9 +18,6 @@ namespace EVoucher.Controllers
         [HttpGet("{InvoiceId}/{EventId}")]
         public async Task<ActionResult<Models.EVoucher>> GetEVoucher(string InvoiceId, Guid EventId)
         {
-            if (string.IsNullOrWhiteSpace(InvoiceId))
-                return BadRequest("Ogiltigt Id");
-
             var clientInv = _httpClientFactory.CreateClient("InvoiceApi");
             var clientEv = _httpClientFactory.CreateClient("EventApi");
 
@@ -31,9 +29,21 @@ namespace EVoucher.Controllers
             string eventName = "";
             string eventTime = "";
 
-            fetchedInvoice = await clientInv.GetFromJsonAsync<Invoice>($"api/Invoice/{InvoiceId}");
-            if (fetchedInvoice == null)
-                return NotFound("Invoice hittades inte.");
+            if (!string.IsNullOrWhiteSpace(InvoiceId))
+            {
+                try
+                {
+                    fetchedInvoice = await clientInv.GetFromJsonAsync<Invoice>($"api/Invoice/{InvoiceId}");
+                }
+                catch
+                {
+                    fetchedInvoice = null;
+                    if (fetchedInvoice == null)
+                    {
+                        _logger.LogWarning("Faktura kunde inte hämtas för InvoiceId: {InvoiceId}", InvoiceId);
+                    }
+                }
+            }
 
             try
             {
@@ -69,11 +79,11 @@ namespace EVoucher.Controllers
                 Id = Guid.NewGuid().ToString(),
                 Ticket = new E_VoucherTicket
                 {
-                    Id = fetchedInvoice.OriginalTicketId ?? "",
-                    Title = fetchedInvoice.Title ?? "",
-                    Name = fetchedInvoice.CustomerName ?? "",
-                    Type = fetchedInvoice.Category ?? "",
-                    InvoiceNumber = fetchedInvoice.InvoiceNumber ?? "",
+                    Id = fetchedInvoice?.OriginalTicketId ?? "",
+                    Title = eventTitle,
+                    Name = fetchedInvoice?.CustomerName ?? "",
+                    Type = fetchedInvoice?.Category ?? "",
+                    InvoiceNumber = fetchedInvoice?.InvoiceNumber ?? "",
                     SeatNumber = "B12",
                     Gate = "3",
                     Location = locationString,
@@ -82,9 +92,6 @@ namespace EVoucher.Controllers
                 },
                 Schedule = new EventSchedule
                 {
-                    EventName = eventName != "" ? eventName : "Sommarkonsert",
-                    StartTime = new DateTime(2025, 6, 1, 18, 30, 0),
-                    EndTime = new DateTime(2025, 6, 1, 21, 0, 0)
                 },
                 ProhibitedItems = new ProhibitedItems
                 {
